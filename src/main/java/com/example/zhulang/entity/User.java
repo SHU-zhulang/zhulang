@@ -16,6 +16,5 @@ public class User {
     private Integer role;
     public String nickName;
     private String gender;
-    private String email;
     private String whatsup;
 }

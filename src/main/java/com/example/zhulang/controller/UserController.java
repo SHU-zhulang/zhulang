@@ -61,9 +61,6 @@ public class UserController {
         if(res == null){
             return Result.error("-1", "该用户未注册");
         }
-        if(!res.getEmail().equals(user.getEmail())){
-            return Result.error("-1", "验证邮箱错误");
-        }
         res.setPassword(user.getPassword());
         userMapper.updateById(res);
         return Result.success(res);
@@ -80,7 +77,6 @@ public class UserController {
         res.setRealName(user.getRealName());
         res.setNickName(user.getNickName());
         res.setGender(user.getGender());
-        res.setEmail(user.getEmail());
         res.setWhatsup(user.getWhatsup());
         userMapper.updateById(res);
         return Result.success(res);
@@ -160,6 +156,7 @@ public class UserController {
         if(!gender.equals("全部")){
             wrapper.eq(User::getGender, gender);
         }
+        wrapper.last("ORDER BY CASE WHEN role IN (1, 2) THEN 0 ELSE 1 END, uid ASC");
         return Result.success(userMapper.selectList(wrapper));
     }
 

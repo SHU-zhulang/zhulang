@@ -1,9 +1,12 @@
+com\example\zhulang\controller\PeopleController.class
 com\example\zhulang\entity\Task.class
 com\example\zhulang\entity\Route.class
 com\example\zhulang\mapper\TaskMapper.class
 com\example\zhulang\controller\TaskController.class
 com\example\zhulang\mapper\UserMapper.class
 com\example\zhulang\controller\RouteController.class
+com\example\zhulang\mapper\PeopleMapper.class
+com\example\zhulang\entity\People.class
 com\example\zhulang\mapper\RouteMapper.class
 com\example\zhulang\controller\FileController.class
 com\example\zhulang\utils\Result.class

@@ -87,10 +87,6 @@ public class TaskController {
             Integer[] temp = Arrays.copyOf(less, more.length);
             System.arraycopy(more, less.length, temp, less.length, more.length - less.length);
             shuffle(temp);
-//        System.out.println(Arrays.toString(more));
-//        System.out.println(Arrays.toString(less));
-//        System.out.println(Arrays.toString(masters));
-//        System.out.println(Arrays.toString(temp));
             for(int i = 0; i < less.length; i++) {
                 Task task = new Task();
                 task.setRouteId(route.getId());
