@@ -10,6 +10,7 @@ import com.example.zhulang.mapper.UserMapper;
 import com.example.zhulang.utils.Result;
 import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -67,49 +68,104 @@ public class TaskController {
         if(routeMapper.selectOne(Wrappers.<Route>lambdaQuery().eq(Route::getId, route.getId())).getAllocated() == 1){
             return Result.error("-1", "该线路已分配天使与主人");
         }
-        while(route.getAllocated() == 0){
-            ArrayList<String> members = new ArrayList<>(Arrays.asList(routeMapper.getMemberById(route.getId()).split(",")));
-            ArrayList<Integer> boys = new ArrayList<Integer>();
-            ArrayList<Integer> girls = new ArrayList<Integer>();
+        int maxTry = 1000;
+        int tryCount = 0;
+        boolean success = false;
+        while(!success && tryCount < maxTry){
+            tryCount++;
+            List<String> members = new ArrayList<>(Arrays.asList(routeMapper.getMemberById(route.getId()).split(",")));
+            List<Integer> boys = new ArrayList<>();
+            List<Integer> girls = new ArrayList<>();
             for(String member : members){
-                Integer m = Integer.parseInt(member);
+                Integer m = Integer.valueOf(member);
                 if(userMapper.isBoy(m) == 1){
                     boys.add(m);
-                }
-                else{
+                } else {
                     girls.add(m);
                 }
             }
-            Integer[] more = (boys.size() >= girls.size() ? boys : girls).toArray(new Integer[0]);
-            Integer[] less = (boys.size() < girls.size() ? boys : girls).toArray(new Integer[0]);
-            shuffle(more);
-            Integer[] masters = Arrays.copyOfRange(more, 0, less.length);
-            Integer[] temp = Arrays.copyOf(less, more.length);
-            System.arraycopy(more, less.length, temp, less.length, more.length - less.length);
-            shuffle(temp);
-            for(int i = 0; i < less.length; i++) {
+            // 以人数多的为more，少的为less
+            List<Integer> more = (boys.size() >= girls.size() ? boys : girls);
+            List<Integer> less = (boys.size() < girls.size() ? boys : girls);
+
+            // less组（如女生）的小天使一定是more组（如男生），且不能抽到自己，且不能重复
+            List<Integer> morePool = new ArrayList<>(more);
+            java.util.Collections.shuffle(morePool);
+            boolean hasSelf = false;
+            boolean[] used = new boolean[morePool.size()];
+            int[] lessToMore = new int[less.size()];
+            Arrays.fill(lessToMore, -1);
+            for(int i = 0; i < less.size(); i++) {
+                boolean found = false;
+                for(int j = 0; j < morePool.size(); j++) {
+                    if(!used[j] && !less.get(i).equals(morePool.get(j))) {
+                        lessToMore[i] = morePool.get(j);
+                        used[j] = true;
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) {
+                    hasSelf = true;
+                    break;
+                }
+            }
+            if(hasSelf) continue;
+
+            // more组的小天使可以是所有人（more+less），不能抽到自己，不能重复
+            List<Integer> allPool = new ArrayList<>(more);
+            allPool.addAll(less);
+            java.util.Collections.shuffle(allPool);
+            used = new boolean[allPool.size()];
+            int[] moreToAll = new int[more.size()];
+            Arrays.fill(moreToAll, -1);
+            for(int i = 0; i < more.size(); i++) {
+                boolean found = false;
+                for(int j = 0; j < allPool.size(); j++) {
+                    if(!used[j] && !more.get(i).equals(allPool.get(j))) {
+                        // 还要保证这个人没有被less组抽到过
+                        boolean alreadyAssigned = false;
+                        for(int k = 0; k < lessToMore.length; k++) {
+                            if(lessToMore[k] == allPool.get(j)) {
+                                alreadyAssigned = true;
+                                break;
+                            }
+                        }
+                        if(alreadyAssigned) continue;
+                        moreToAll[i] = allPool.get(j);
+                        used[j] = true;
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) {
+                    hasSelf = true;
+                    break;
+                }
+            }
+            if(hasSelf) continue;
+
+            // 分配成功，插入数据库
+            for(int i = 0; i < less.size(); i++) {
                 Task task = new Task();
                 task.setRouteId(route.getId());
-                task.setMemberId(less[i]);
-                task.setMasterId(masters[i]);
+                task.setMemberId(less.get(i));
+                task.setMasterId(lessToMore[i]);
                 taskMapper.insert(task);
             }
-            for(int i = 0; i < more.length; i++) {
+            for(int i = 0; i < more.size(); i++) {
                 Task task = new Task();
                 task.setRouteId(route.getId());
-                task.setMemberId(more[i]);
-                task.setMasterId(temp[i]);
+                task.setMemberId(more.get(i));
+                task.setMasterId(moreToAll[i]);
                 taskMapper.insert(task);
             }
-            if(taskMapper.isRepeat(route.getId()) != 0){
-//                System.out.println("发生了重复");
-                delete(route);
-            }
-            else{
-//                System.out.println("没有发生重复");
-                route.setAllocated(1);
-                routeMapper.updateAllocatedById(route.getId(), 1);
-            }
+            route.setAllocated(1);
+            routeMapper.updateAllocatedById(route.getId(), 1);
+            success = true;
+        }
+        if(!success){
+            return Result.error("-1", "分配失败，请重试");
         }
         return Result.success();
     }

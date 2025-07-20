@@ -49,7 +49,7 @@ public class PeopleController {
         }
         else {
             // 没提交过，插入新记录
-            System.out.println(people);
+//            System.out.println(people);
             peopleMapper.insert(people);
             return Result.success();
         }
@@ -75,15 +75,31 @@ public class PeopleController {
     /***
      * 人物贴头图上传
      * @param photo
+     * @param uid
      * @return
      * @throws IOException
      */
     @PostMapping("/photo")
-    public Result<?> photo(MultipartFile photo) throws IOException {
-        String lastName = photo.getOriginalFilename();
-        String filePath = "/home/resources/people/" + lastName;
-//        String filePath = "E:\\zhulang\\people\\" + lastName;
-        // 使用 try-with-resources 确保流关闭
+    public Result<?> photo(@RequestParam("photo") MultipartFile photo, @RequestParam("uid") Integer uid) throws IOException {
+        // 查找用户信息
+        User user = userMapper.selectById(uid);
+        if (user == null) {
+            return Result.error("-1", "用户不存在");
+        }
+        String realName = user.getRealName();
+        String nickName = user.getNickName();
+        // 获取原始文件扩展名
+        String originalName = photo.getOriginalFilename();
+        String ext = "";
+        if (originalName != null && originalName.contains(".")) {
+            ext = originalName.substring(originalName.lastIndexOf("."));
+        }
+        // 生成新文件名：真名-花名-uuid.扩展名
+        String uuid = UUID.randomUUID().toString();
+        String newFileName = realName + "-" + nickName + "-" + uuid + ext;
+        String filePath = "/home/resources/people/" + newFileName;
+//        String filePath = "E:\\zhulang\\people\\" + newFileName;
+        // 保存文件
         try (InputStream inputStream = photo.getInputStream();
              OutputStream outputStream = new FileOutputStream(filePath)) {
             byte[] buffer = new byte[1024];
@@ -92,7 +108,7 @@ public class PeopleController {
                 outputStream.write(buffer, 0, bytesRead);
             }
         }
-        return Result.success("http://www.zhulang.online/resources/people/" + lastName);
+        return Result.success("http://www.zhulang.online/resources/people/" + newFileName);
     }
 
     /***
@@ -119,7 +135,7 @@ public class PeopleController {
                 allPeople.add(curMember.get(0));
             }
         }
-        System.out.println(allPeople);
+//        System.out.println(allPeople);
 
         // 开始制作人物贴word文档
         String docLastName = UUID.randomUUID() + ".docx";
@@ -156,11 +172,13 @@ public class PeopleController {
             minasanRun.setFontSize(15);
             minasanRun.addBreak();
             for (People curPeople : allPeople) {
-                XWPFParagraph curParagraph = document.createParagraph();
-                XWPFRun curRun = curParagraph.createRun();
-                curRun.setText(curPeople.getNickName() + "：");
-                curRun.setText(curPeople.self);
-                curRun.addBreak();
+                if (StrUtil.isNotBlank(curPeople.self)) { // 只在 self 不为空时输出
+                    XWPFParagraph curParagraph = document.createParagraph();
+                    XWPFRun curRun = curParagraph.createRun();
+                    curRun.setText(curPeople.getNickName() + "：");
+                    curRun.setText(curPeople.self);
+                    curRun.addBreak();
+                }
             }
 
             // 遍历allPeople，给每个人拼凑人物贴。在每次遍历中，去所有的content当中寻找写给当前用户的人物贴
@@ -216,7 +234,7 @@ public class PeopleController {
             byte[] zipData = createZipInMemory(filesToZip);
             saveZipToFile(zipData, outputZipFilePath);
 
-            System.out.println("压缩完成，文件已保存到: " + outputZipFilePath);
+//            System.out.println("压缩完成，文件已保存到: " + outputZipFilePath);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -248,7 +266,7 @@ public class PeopleController {
 
                 // 检查文件是否存在
                 if (file == null || !file.exists()) {
-                    System.out.println("文件不存在: " + filePath);
+//                    System.out.println("文件不存在: " + filePath);
                     continue;
                 }
 
@@ -286,7 +304,7 @@ public class PeopleController {
      * @throws IOException
      */
     public static File downloadFile(String fileUrl) throws IOException {
-        System.out.println("正在下载: " + fileUrl);
+//        System.out.println("正在下载: " + fileUrl);
 
         // 创建 URL 对象
         URL url = new URL(fileUrl);
@@ -313,10 +331,10 @@ public class PeopleController {
                 }
             }
 
-            System.out.println("下载完成: " + tempFile.getAbsolutePath());
+//            System.out.println("下载完成: " + tempFile.getAbsolutePath());
             return tempFile;
         } else {
-            System.out.println("下载失败: " + fileUrl + "，HTTP 响应码: " + connection.getResponseCode());
+//            System.out.println("下载失败: " + fileUrl + "，HTTP 响应码: " + connection.getResponseCode());
             return null;
         }
     }
